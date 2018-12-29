@@ -103,14 +103,15 @@ if __name__ == "__main__":
         from brain.pbrain import DQN
 
     # game setup
-    AGENT = 'Firen'
-    OPPOENENT = 'Dennis'
+    AGENT = 'Freeze'
+    OPPOENENT = 'Firen'
 
     # env setup
-    env = lf2gym.make(startServer=True, wrap='skip4', driverType=lf2gym.WebDriver.PhantomJS, 
-        characters=[lf2gym.Character[AGENT], lf2gym.Character[OPPOENENT]], debug=True,
+    env = lf2gym.make(startServer=True, wrap='skip4', driverType=lf2gym.WebDriver.Chrome, debug=True,
+        characters=[lf2gym.Character[AGENT], lf2gym.Character[OPPOENENT]],
         difficulty=lf2gym.Difficulty.Crusher,
-        action_options=['Basic', 'AJD'], port=8000)
+        action_options=['Basic', 'Advanced', 'AJD', 'Full Combos'],
+        rewardList=['hp', 'mp'])
     
     options = env.get_reset_options()
     print('Original reset options: %s' % options)
@@ -123,9 +124,11 @@ if __name__ == "__main__":
     if mode == 'picture':
         state_n = env.observation_space.n
     elif mode == 'feature':
-        state_n = 28
+        # state_n = 28
+        state_n = 32
     elif mode == 'mix':
-        state_n = [env.observation_space.n, 28]
+        # state_n = [env.observation_space.n, 28]
+        state_n = [env.observation_space.n, 32]
     else:
         state_n = env.observation_space.n
         mode = 'picture'
