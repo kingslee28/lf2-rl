@@ -21,11 +21,22 @@ class Net(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1).to(device)  # (64, 10, 24)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1).to(device)  # (64, 10, 24)
 
-        # LSTM
+        # A3C
+        a3c_n = action_n * 2
         hidden_n = 512
-        self.lstm = nn.LSTMCell(15360 + feature_n, hidden_n, bias=False).to(device)
+        self.lstm = nn.LSTMCell(15360 + feature_n + a3c_n, hidden_n, bias=False).to(device)
         self.hx = torch.randn(1, hidden_n)
         self.cx = torch.randn(1, hidden_n)
+
+        self.critic_linear = nn.Linear(512, 1).to(device)
+        self.critic_linear.weight.data.normal_(0, 1.0)   # initialization
+        self.clx = torch.randn(1, 1)
+        self.actor_linear = nn.Linear(512, action_n).to(device)
+        self.actor_linear.weight.data.normal_(0, 0.01)  # initialization
+        self.ssx = torch.randn(1, action_n)
+        self.actor_linear2 = nn.Linear(512, action_n).to(device)
+        self.actor_linear2.weight.data.normal_(0, 0.01)  # initialization
+        self.ax = torch.randn(1, action_n)
 
         # output
         self.out = nn.Linear(512, action_n).to(device)
@@ -38,11 +49,14 @@ class Net(nn.Module):
         picture = F.relu(self.conv2(picture))
         picture = F.relu(self.conv3(picture))
         picture = picture.view(picture.size(0), -1)
-        x = torch.cat((picture, feature), 1)
+        x = torch.cat((picture, feature, self.ssx, self.ax), 1)
 
-        # LSTM
+        # A3C
         self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
         x = self.hx
+        self.clx = self.critic_linear(x)
+        self.ssx = F.softsign(self.actor_linear(x))
+        self.ax = self.actor_linear2(x)
 
         actions_value = self.out(x)
         return actions_value
