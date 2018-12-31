@@ -91,7 +91,7 @@ if __name__ == "__main__":
         from brain.pbrain import DQN
     
     # game setup
-    AGENT = 'Freeze'
+    AGENT = 'Deep'
     OPPOENENT = 'Firen'
 
     # env setup
@@ -99,7 +99,8 @@ if __name__ == "__main__":
         characters=[lf2gym.Character[AGENT], lf2gym.Character[OPPOENENT]], 
         difficulty=lf2gym.Difficulty.Crusher,
         action_options=['Basic', 'Advanced', 'AJD', 'Full Combos'],
-        rewardList=['hp', 'mp'])
+        # rewardList=['hp', 'mp'])
+        rewardList=['hp'])
     
     options = env.get_reset_options()
     print('Original reset options: %s' % options)
