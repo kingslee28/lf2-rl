@@ -20,10 +20,12 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4, padding=3).to(device)  # (32, 20, 48)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1).to(device)  # (64, 10, 24)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1).to(device)  # (64, 10, 24)
+        self.fc1 = nn.Linear(15360, 128).to(device)
+        self.fc1.weight.data.normal_(0, 0.1)
 
         # LSTM
-        hidden_n = 512
-        self.lstm = nn.LSTMCell(15360 + feature_n, hidden_n, bias=False).to(device)
+        hidden_n = 50
+        self.lstm = nn.LSTMCell(128 + feature_n, hidden_n, bias=False).to(device)
         self.hx = torch.randn(1, hidden_n)
         self.cx = torch.randn(1, hidden_n)
         if USE_CUDA:
@@ -31,7 +33,7 @@ class Net(nn.Module):
             self.cx = self.cx.cuda()
 
         # output
-        self.out = nn.Linear(512, action_n).to(device)
+        self.out = nn.Linear(hidden_n, action_n).to(device)
         self.out.weight.data.normal_(0, 0.1)  # initialization
 
     def forward(self, x):
@@ -44,9 +46,9 @@ class Net(nn.Module):
         picture = F.relu(self.conv2(picture))
         picture = F.relu(self.conv3(picture))
         picture = picture.view(picture.size(0), -1)
+        picture = F.relu(self.fc1(picture))
         x = torch.cat((picture, feature), 1)
         # print("x shape {}".format(x.shape))
-
 
         # LSTM
         size = x.shape[0]
@@ -81,6 +83,7 @@ class DQN(object):
             (MEMORY_CAPACITY, (4 * self.state_n[0][0] * self.state_n[0][1] + self.state_n[1]) * 2 + 2))
         self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.lr)
         self.loss_func = nn.MSELoss()
+        self.backward_count = 0
 
     def choose_action(self, x):
         picture = torch.unsqueeze(torch.FloatTensor(x[0]).to(device), 0)
@@ -138,7 +141,10 @@ class DQN(object):
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        if self.backward_count > 0:
+            loss.backward()
+        else:
+            loss.backward(retain_graph=True)
         self.optimizer.step()
 
     def save_model(self):
