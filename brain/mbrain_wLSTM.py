@@ -26,6 +26,9 @@ class Net(nn.Module):
         self.lstm = nn.LSTMCell(15360 + feature_n, hidden_n, bias=False).to(device)
         self.hx = torch.randn(1, hidden_n)
         self.cx = torch.randn(1, hidden_n)
+        if USE_CUDA:
+            self.hx = self.hx.cuda()
+            self.cx = self.cx.cuda()
 
         # output
         self.out = nn.Linear(512, action_n).to(device)
@@ -33,16 +36,28 @@ class Net(nn.Module):
 
     def forward(self, x):
         picture, feature = x[0], x[1]
+        # print("picture len: {}".format(len(picture)))
+        # print("feature len: {}".format(len(feature)))
+
         # picture cnn
         picture = F.relu(self.conv1(picture))
         picture = F.relu(self.conv2(picture))
         picture = F.relu(self.conv3(picture))
         picture = picture.view(picture.size(0), -1)
         x = torch.cat((picture, feature), 1)
+        # print("x shape {}".format(x.shape))
+
 
         # LSTM
-        self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
-        x = self.hx
+        size = x.shape[0]
+        # print("size: {}".format(size))
+        if size == 1:
+            self.hx, self.cx = self.lstm(x, (self.hx, self.cx))
+            x = self.hx
+        else:
+            x, _ = self.lstm(x, (torch.cat([self.hx]*BATCH_SIZE, 0), torch.cat([self.cx]*BATCH_SIZE, 0)))
+        # print("x shape {}".format(x.shape))
+        # print("=" * 10)
 
         actions_value = self.out(x)
         return actions_value
@@ -73,6 +88,7 @@ class DQN(object):
         x = [picture, feature]
         # input only one sample
         if np.random.uniform() < self.epsilon:  # greedy
+            # print("choose action and forward")
             actions_value = self.eval_net.forward(x).cpu()
             action = torch.max(actions_value, 1)[1].data.numpy()
             action = action[0] if self.env_shape == 0 else action.reshape(self.env_shape)
@@ -91,6 +107,7 @@ class DQN(object):
         self.memory_counter += 1
 
     def learn(self):
+        # print("backward")
         # target parameter update
         if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
             self.target_net.load_state_dict(self.eval_net.state_dict())
@@ -121,7 +138,7 @@ class DQN(object):
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         self.optimizer.step()
 
     def save_model(self):

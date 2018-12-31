@@ -37,7 +37,7 @@ def test(mothod, mode, model_path):
             iter_cnt += 1
 
             # fresh env
-            env.render()
+            # env.render()
 
             if algorithm == 'DQN':
                 # RL choose action based on observation
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         from brain.pbrain import DQN
     
     # game setup
-    AGENT = 'Deep'
+    AGENT = 'Dennis'
     OPPOENENT = 'Firen'
 
     # env setup
